@@ -1,5 +1,5 @@
 //
-//  PostTableViewCell.swift
+//  FavoriteTableViewCell.swift
 //  DU-ADM
 //
 //  Created by nishchita.gangadhara on 26/03/26.
@@ -7,7 +7,7 @@
 
 import UIKit
 
-class PostTableViewCell: UITableViewCell {
+class FavoriteTableViewCell: UITableViewCell {
     
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var descriptionLabel: UILabel!

@@ -30,13 +30,12 @@ class LoginViewController: UIViewController {
     @IBAction func loginTapped() {
         // Save login session
         UserDefaults.standard.set(true, forKey: "isLoggedIn")
-        
+        navigateToHome()
     }
     
     @IBAction func showPasswordTapped(_ sender: UIButton) {
         passwordTextField.isSecureTextEntry.toggle()
         
-        // Optional: change button icon
         let imageName = passwordTextField.isSecureTextEntry ? "eye.slash" : "eye"
         sender.setImage(UIImage(systemName: imageName), for: .normal)
     }
@@ -81,6 +80,22 @@ extension LoginViewController {
         if passwordTextField.text != "" {
             passwordTextField.layer.borderWidth = viewModel.isValidPassword ? 0 : 1
             passwordTextField.layer.borderColor = UIColor.red.cgColor
+        }
+    }
+    
+    private func navigateToHome() {
+        
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        
+        guard let tabBarVC = storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? UITabBarController else {
+            return
+        }
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            
+            window.rootViewController = tabBarVC
+            window.makeKeyAndVisible()
         }
     }
 }
