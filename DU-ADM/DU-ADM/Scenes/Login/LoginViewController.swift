@@ -43,6 +43,8 @@ class LoginViewController: UIViewController {
 
 extension LoginViewController {
     
+    // MARK: - Setup UI
+    
     private func setupUI() {
         errorLabel.isHidden = true
         submitButton.isEnabled = false
@@ -82,6 +84,8 @@ extension LoginViewController {
             passwordTextField.layer.borderColor = UIColor.red.cgColor
         }
     }
+    
+    // MARK: - Router
     
     private func navigateToHome() {
         

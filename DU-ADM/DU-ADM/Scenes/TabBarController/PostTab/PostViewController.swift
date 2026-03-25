@@ -13,16 +13,13 @@ class PostViewController: UIViewController {
     @IBOutlet weak var tableView: UITableView!
     
     private let viewModel = PostViewModel()
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         setupTableView()
         setupNavigationBar()
-        
-        self.viewModel.loadPosts {
-            self.tableView.reloadData()
-        }
+        setupNetworkListener()
     }
     
     // MARK: - Setup UI
@@ -35,7 +32,7 @@ class PostViewController: UIViewController {
         tableView.dataSource = self
         tableView.delegate = self
     }
-
+    
     func setupNavigationBar() {
         
         title = "Posts"
@@ -46,6 +43,25 @@ class PostViewController: UIViewController {
             target: self,
             action: #selector(logoutTapped)
         )
+    }
+    
+    // MARK: - To Check Network Connectivity
+    
+    private func setupNetworkListener() {
+        
+        NetworkManager.shared.onStatusChange = { [weak self] isConnected in
+            
+            guard let self = self else { return }
+            
+            if isConnected {
+                self.viewModel.loadPosts {
+                    self.tableView.reloadData()
+                }
+            } else {
+                self.viewModel.loadPostsFromDB()
+                self.tableView.reloadData()
+            }
+        }
     }
     
     // MARK: - Actions
