@@ -1,0 +1,6 @@
+framework module Pods_DU_ADM {
+  umbrella header "Pods-DU-ADM-umbrella.h"
+
+  export *
+  module * { export * }
+}
