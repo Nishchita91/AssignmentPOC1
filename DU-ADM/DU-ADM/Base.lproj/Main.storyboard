@@ -146,7 +146,7 @@
                             <constraint firstItem="WZ6-rn-lYL" firstAttribute="leading" secondItem="dGw-E2-bBx" secondAttribute="leading" constant="16" id="vtP-PS-Pog"/>
                         </constraints>
                     </view>
-                    <tabBarItem key="tabBarItem" title="Fav" id="pJq-b9-38G"/>
+                    <tabBarItem key="tabBarItem" title="Fav" image="star.fill" catalog="system" id="pJq-b9-38G"/>
                     <connections>
                         <outlet property="tableView" destination="WZ6-rn-lYL" id="fnB-ta-VjF"/>
                     </connections>
@@ -212,7 +212,7 @@
         <scene sceneID="166-65-6w1">
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="8JL-pK-00x" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Post" id="C7u-IY-d4o"/>
+                    <tabBarItem key="tabBarItem" title="Post" image="signpost.left.fill" catalog="system" id="C7u-IY-d4o"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" id="Xs2-EE-o7r">
                         <rect key="frame" x="0.0" y="118" width="393" height="54"/>
@@ -231,6 +231,8 @@
     <resources>
         <image name="bg_logo" width="1024" height="1536"/>
         <image name="eye.slash" catalog="system" width="128" height="97"/>
+        <image name="signpost.left.fill" catalog="system" width="128" height="121"/>
+        <image name="star.fill" catalog="system" width="128" height="116"/>
         <namedColor name="AccentColor">
             <color red="0.0" green="0.46000000000000002" blue="0.89000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

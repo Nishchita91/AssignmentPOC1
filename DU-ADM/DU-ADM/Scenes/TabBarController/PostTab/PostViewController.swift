@@ -12,11 +12,14 @@ class PostViewController: UIViewController {
     
     @IBOutlet weak var tableView: UITableView!
     
+    let activityIndicator = UIActivityIndicatorView(style: .large)
+    
     private let viewModel = PostViewModel()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        setupLoader()
         setupTableView()
         setupNavigationBar()
         setupNetworkListener()
@@ -45,9 +48,17 @@ class PostViewController: UIViewController {
         )
     }
     
+    func setupLoader() {
+        activityIndicator.center = view.center
+        activityIndicator.hidesWhenStopped = true
+        view.addSubview(activityIndicator)
+    }
+    
     // MARK: - To Check Network Connectivity
     
     private func setupNetworkListener() {
+        
+        activityIndicator.startAnimating()
         
         NetworkManager.shared.onStatusChange = { [weak self] isConnected in
             
@@ -55,6 +66,7 @@ class PostViewController: UIViewController {
             
             if isConnected {
                 self.viewModel.loadPosts {
+                    self.activityIndicator.stopAnimating()
                     self.tableView.reloadData()
                 }
             } else {
