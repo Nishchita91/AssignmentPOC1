@@ -6,81 +6,36 @@
 //
 
 import UIKit
-import RealmSwift
+import RxSwift
+import RxCocoa
 
 class PostViewController: UIViewController {
     
     @IBOutlet weak var tableView: UITableView!
     
-    let activityIndicator = UIActivityIndicatorView(style: .large)
+    private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     private let viewModel = PostViewModel()
+    private let disposeBag = DisposeBag()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        setupLoader()
-        setupTableView()
+        setupUI()
+        bindTableView()
         setupNavigationBar()
+        bindSelection()
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        bindLoader()
         setupNetworkListener()
-    }
-    
-    // MARK: - Setup UI
-    
-    func setupTableView() {
-        tableView.register(UINib(nibName: "PostTableViewCell", bundle: nil),
-                           forCellReuseIdentifier: "PostCell")
-        tableView.rowHeight = UITableView.automaticDimension
-        tableView.estimatedRowHeight = 100
-        tableView.dataSource = self
-        tableView.delegate = self
-    }
-    
-    func setupNavigationBar() {
-        
-        title = "Posts"
-        
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Logout",
-            style: .plain,
-            target: self,
-            action: #selector(logoutTapped)
-        )
-    }
-    
-    func setupLoader() {
-        activityIndicator.center = view.center
-        activityIndicator.hidesWhenStopped = true
-        view.addSubview(activityIndicator)
-    }
-    
-    // MARK: - To Check Network Connectivity
-    
-    private func setupNetworkListener() {
-        
-        activityIndicator.startAnimating()
-        
-        NetworkManager.shared.onStatusChange = { [weak self] isConnected in
-            
-            guard let self = self else { return }
-            
-            if isConnected {
-                self.viewModel.loadPosts {
-                    self.activityIndicator.stopAnimating()
-                    self.tableView.reloadData()
-                }
-            } else {
-                self.viewModel.loadPostsFromDB()
-                self.tableView.reloadData()
-            }
-        }
     }
     
     // MARK: - Actions
     
     @objc private func logoutTapped() {
         
-        // Clear session
         UserDefaults.standard.set(false, forKey: "isLoggedIn")
         
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
@@ -95,35 +50,92 @@ class PostViewController: UIViewController {
     }
 }
 
-// MARK: - UITableViewDataSource
+// MARK: - Setup UI
 
-extension PostViewController: UITableViewDataSource {
+extension PostViewController {
     
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        viewModel.posts.count
+    private func setupUI() {
+        
+        tableView.register(UINib(nibName: "PostTableViewCell", bundle: nil),
+                           forCellReuseIdentifier: "PostCell")
+        
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 100
+        
+        activityIndicator.center = view.center
+        activityIndicator.hidesWhenStopped = true
+        view.addSubview(activityIndicator)
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: "PostCell",
-                                                       for: indexPath) as? PostTableViewCell else {
-            return UITableViewCell()
+    func setupNavigationBar() {
+        title = "Posts"
+        navigationItem.rightBarButtonItem = UIBarButtonItem( title: "Logout",
+                                                             style: .plain,
+                                                             target: self,
+                                                             action: #selector(logoutTapped) )
+    }
+}
+ 
+// MARK: - Setup ActivityIndicator
+
+extension PostViewController {
+    
+    private func bindLoader() {
+        
+        viewModel.isLoading
+            .subscribe(onNext: { [weak self] loading in
+                
+                if loading {
+                    self?.activityIndicator.startAnimating()
+                } else {
+                    self?.activityIndicator.stopAnimating()
+                }
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    private func setupNetworkListener() {
+        
+        NetworkManager.shared.onStatusChange = { [weak self] isConnected in
+            
+            guard let self = self else { return }
+            
+            if isConnected {
+                self.viewModel.loadPosts()
+            } else {
+                self.viewModel.loadPostsFromDB()
+            }
         }
+    }
+}
+
+// MARK: - UITableViewDataSource
+
+extension PostViewController {
+    
+    private func bindTableView() {
         
-        let post = viewModel.posts[indexPath.row]
-        cell.configure(with: post)
-        cell.selectionStyle = .none
-        
-        return cell
+        viewModel.postsRelay
+            .bind(to: tableView.rx.items(cellIdentifier: "PostCell",
+                                         cellType: PostTableViewCell.self)) { row, post, cell in
+                cell.configure(with: post)
+                cell.selectionStyle = .none
+            }
+                                         .disposed(by: disposeBag)
     }
 }
 
 // MARK: - UITableViewDelegate
 
-extension PostViewController: UITableViewDelegate {
+extension PostViewController {
     
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let post = viewModel.posts[indexPath.row]
-        showFavoriteAlert(for: post)
+    private func bindSelection() {
+        
+        tableView.rx.modelSelected(Post.self)
+            .subscribe(onNext: { [weak self] post in
+                self?.showFavoriteAlert(for: post)
+            })
+            .disposed(by: disposeBag)
     }
     
     private func showFavoriteAlert(for post: Post) {
@@ -133,17 +145,11 @@ extension PostViewController: UITableViewDelegate {
                                       preferredStyle: .actionSheet)
         
         let addAction = UIAlertAction(title: "Add", style: .default) { _ in
-            
-            if !post.isFavorite {
-                self.viewModel.updateFavorite(post: post, isFavorite: true)
-            }
+            self.viewModel.updateFavorite(post: post, isFavorite: true)
         }
         
         let removeAction = UIAlertAction(title: "Remove", style: .destructive) { _ in
-            
-            if post.isFavorite {
-                self.viewModel.updateFavorite(post: post, isFavorite: false)
-            }
+            self.viewModel.updateFavorite(post: post, isFavorite: false)
         }
         
         if post.isFavorite {
@@ -152,13 +158,7 @@ extension PostViewController: UITableViewDelegate {
             alert.addAction(addAction)
         }
         
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = self.view
-            popover.sourceRect = CGRect(x: self.view.bounds.midX,
-                                        y: self.view.bounds.midY,
-                                        width: 0,
-                                        height: 0)
-        }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
         present(alert, animated: true)
     }

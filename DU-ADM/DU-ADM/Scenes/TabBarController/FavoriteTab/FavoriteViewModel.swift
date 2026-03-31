@@ -5,20 +5,40 @@
 //  Created by nishchita.gangadhara on 26/03/26.
 //
 
+import Foundation
+import RxSwift
+import RxCocoa
 import RealmSwift
 
 class FavoriteViewModel {
     
-    func loadFavorites() ->  [Post] {
+    private let disposeBag = DisposeBag()
+    
+    // MARK: - Output
+    let favoritesRelay = BehaviorRelay<[Post]>(value: [])
+    
+    // MARK: - Load Data
+    
+    func loadFavorites() {
         let realm = try! Realm()
-        return Array(realm.objects(Post.self).filter("isFavorite == true"))
+        let results = realm.objects(Post.self).filter("isFavorite == true")
+        favoritesRelay.accept(Array(results))
     }
     
-    func updateFavorites(post: Post) {
+    // MARK: - Remove Favorite
+    
+    func removeFromFavorites(at index: Int) {
+        
         let realm = try! Realm()
+        var current = favoritesRelay.value
+        
+        let post = current[index]
         
         try? realm.write {
             post.isFavorite = false
         }
+        
+        current.remove(at: index)
+        favoritesRelay.accept(current)
     }
 }

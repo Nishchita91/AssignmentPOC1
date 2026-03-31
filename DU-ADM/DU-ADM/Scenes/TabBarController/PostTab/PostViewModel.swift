@@ -5,29 +5,45 @@
 //  Created by nishchita.gangadhara on 26/03/26.
 //
 
+import Foundation
+import RxSwift
+import RxCocoa
 import RealmSwift
 
 class PostViewModel {
     
     private let repository = PostRepository()
+    private let disposeBag = DisposeBag()
     
-    var posts: [Post] = []
+    // MARK: - Output
+    let postsRelay = BehaviorRelay<[Post]>(value: [])
+    let isLoading = BehaviorRelay<Bool>(value: false)
     
-    func loadPosts(completion: @escaping () -> Void) {
+    // MARK: - Load Posts (API)
+    
+    func loadPosts() {
+        
+        isLoading.accept(true)
         
         repository.fetchPosts {
-            self.posts = self.repository.getPostsFromDB()
-            completion()
+            
+            let data = self.repository.getPostsFromDB()
+            self.postsRelay.accept(data)
+            self.isLoading.accept(false)
         }
     }
+    
+    // MARK: - Load from DB
     
     func loadPostsFromDB() {
         
         let realm = try! Realm()
         let results = realm.objects(Post.self)
         
-        self.posts = Array(results)
+        postsRelay.accept(Array(results))
     }
+    
+    // MARK: - Update Favorite
     
     func updateFavorite(post: Post, isFavorite: Bool) {
         
@@ -36,6 +52,9 @@ class PostViewModel {
         try? realm.write {
             post.isFavorite = isFavorite
         }
+        
+        // Refresh UI
+        loadPostsFromDB()
     }
 }
 

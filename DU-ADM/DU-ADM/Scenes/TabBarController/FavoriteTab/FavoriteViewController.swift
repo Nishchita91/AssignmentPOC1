@@ -6,61 +6,57 @@
 //
 
 import UIKit
+import RxSwift
+import RxCocoa
 
 class FavoriteViewController: UIViewController {
     
     @IBOutlet weak var tableView: UITableView!
     
-    var favorites: [Post] = []
-    
     private let viewModel = FavoriteViewModel()
+    private let disposeBag = DisposeBag()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         setupTableView()
+        bindTableView()
     }
     
     override func viewWillAppear(_ animated: Bool) {
-        loadFavorites()
+        super.viewWillAppear(animated)
+        viewModel.loadFavorites()
     }
+}
+
+// MARK: - Setup UI
+
+extension FavoriteViewController {
     
-    // MARK: - Setup UI
-    
-    func setupTableView() {
+    private func setupTableView() {
         tableView.register(UINib(nibName: "FavoriteTableViewCell", bundle: nil),
                            forCellReuseIdentifier: "FavouriteCell")
+        
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
-        tableView.dataSource = self
-        tableView.delegate = self
-    }
-    
-    private func loadFavorites() {
-        favorites = viewModel.loadFavorites()
-        tableView.reloadData()
+        tableView.rx.setDelegate(self)
+            .disposed(by: disposeBag)
     }
 }
 
 // MARK: - UITableViewDataSource
 
-extension FavoriteViewController: UITableViewDataSource {
+extension FavoriteViewController {
     
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        favorites.count
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: "FavouriteCell",
-                                                       for: indexPath) as? FavoriteTableViewCell else {
-            return UITableViewCell()
-        }
+    private func bindTableView() {
         
-        let post = favorites[indexPath.row]
-        cell.configure(with: post)
-        cell.selectionStyle = .none
-        
-        return cell
+        viewModel.favoritesRelay
+            .bind(to: tableView.rx.items(cellIdentifier: "FavouriteCell",
+                                         cellType: FavoriteTableViewCell.self)) { row, post, cell in
+                cell.configure(with: post)
+                cell.selectionStyle = .none
+            }
+                                         .disposed(by: disposeBag)
     }
 }
 
@@ -71,14 +67,9 @@ extension FavoriteViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView,
                    trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         
-        let remove = UIContextualAction(style: .destructive, title: "Remove") { _, _, completion in
+        let remove = UIContextualAction(style: .destructive, title: "Remove") { [weak self] _, _, completion in
             
-            let post = self.favorites[indexPath.row]
-            self.viewModel.updateFavorites(post: post)
-            
-            self.favorites.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            
+            self?.viewModel.removeFromFavorites(at: indexPath.row)
             completion(true)
         }
         

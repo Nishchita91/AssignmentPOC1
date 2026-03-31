@@ -6,13 +6,14 @@
 //
 
 import UIKit
+import RxSwift
+import RxCocoa
 
 class LoginViewController: UIViewController {
     
-    // MARK: - ViewModel
     private let viewModel = LoginViewModel()
+    private let disposeBag = DisposeBag()
     
-    // MARK: - IBOutlets
     @IBOutlet weak var emailTextField: UITextField!
     @IBOutlet weak var passwordTextField: UITextField!
     @IBOutlet weak var submitButton: UIButton!
@@ -22,15 +23,24 @@ class LoginViewController: UIViewController {
         super.viewDidLoad()
         
         setupUI()
-        setupTextfields()
+        bindViewModel()
+    }
+}
+
+extension LoginViewController {
+    
+    private func setupUI() {
+        errorLabel.isHidden = true
+        submitButton.isEnabled = false
     }
     
-    // MARK: - Actions
-    
     @IBAction func loginTapped() {
-        // Save login session
-        UserDefaults.standard.set(true, forKey: "isLoggedIn")
-        navigateToHome()
+        submitButton.rx.tap
+            .subscribe(onNext: { [weak self] in
+                UserDefaults.standard.set(true, forKey: "isLoggedIn")
+                self?.navigateToHome()
+            })
+            .disposed(by: disposeBag)
     }
     
     @IBAction func showPasswordTapped(_ sender: UIButton) {
@@ -39,67 +49,70 @@ class LoginViewController: UIViewController {
         let imageName = passwordTextField.isSecureTextEntry ? "eye.slash" : "eye"
         sender.setImage(UIImage(systemName: imageName), for: .normal)
     }
+    
+    private func navigateToHome() {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        guard let tabBarVC = storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? UITabBarController else {
+            return
+        }
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            window.rootViewController = tabBarVC
+            window.makeKeyAndVisible()
+        }
+    }
 }
 
 extension LoginViewController {
     
-    // MARK: - Setup UI
-    
-    private func setupUI() {
-        errorLabel.isHidden = true
-        submitButton.isEnabled = false
-    }
-    
-    private func setupTextfields() {
-        emailTextField.addTarget(self, action: #selector(textDidChange), for: .editingChanged)
-        passwordTextField.addTarget(self, action: #selector(textDidChange), for: .editingChanged)
-    }
-    
-    @objc private func textDidChange() {
+    private func bindViewModel() {
         
-        viewModel.email = emailTextField.text ?? ""
-        viewModel.password = passwordTextField.text ?? ""
+        // MARK: - Input Binding
         
-        updateUI()
-    }
-    
-    private func updateUI() {
+        emailTextField.rx.text.orEmpty
+            .bind(to: viewModel.email)
+            .disposed(by: disposeBag)
         
-        submitButton.isEnabled = viewModel.isFormValid
+        passwordTextField.rx.text.orEmpty
+            .bind(to: viewModel.password)
+            .disposed(by: disposeBag)
         
-        if let error = viewModel.errorMessage {
-            errorLabel.text = error
-            errorLabel.isHidden = false
-        } else {
-            errorLabel.isHidden = true
-        }
+        // MARK: - Output Binding
         
-        if emailTextField.text != "" {
-            emailTextField.layer.borderWidth = viewModel.isValidEmail ? 0 : 1
-            emailTextField.layer.borderColor = UIColor.red.cgColor
-        }
+        // Enable button
+        viewModel.isFormValid
+            .bind(to: submitButton.rx.isEnabled)
+            .disposed(by: disposeBag)
         
-        if passwordTextField.text != "" {
-            passwordTextField.layer.borderWidth = viewModel.isValidPassword ? 0 : 1
-            passwordTextField.layer.borderColor = UIColor.red.cgColor
-        }
-    }
-    
-    // MARK: - Router
-    
-    private func navigateToHome() {
+        // Error message
+        viewModel.errorMessage
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { [weak self] error in
+                self?.errorLabel.text = error
+                self?.errorLabel.isHidden = (error == nil)
+            })
+            .disposed(by: disposeBag)
         
-        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        // Email border
+        viewModel.isValidEmail
+            .subscribe(onNext: { [weak self] isValid in
+                guard let self = self else { return }
+                if !self.emailTextField.text!.isEmpty {
+                    self.emailTextField.layer.borderWidth = isValid ? 0 : 1
+                    self.emailTextField.layer.borderColor = UIColor.red.cgColor
+                }
+            })
+            .disposed(by: disposeBag)
         
-        guard let tabBarVC = storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? UITabBarController else {
-            return
-        }
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            
-            window.rootViewController = tabBarVC
-            window.makeKeyAndVisible()
-        }
+        // Password border
+        viewModel.isValidPassword
+            .subscribe(onNext: { [weak self] isValid in
+                guard let self = self else { return }
+                if !self.passwordTextField.text!.isEmpty {
+                    self.passwordTextField.layer.borderWidth = isValid ? 0 : 1
+                    self.passwordTextField.layer.borderColor = UIColor.red.cgColor
+                }
+            })
+            .disposed(by: disposeBag)
     }
 }
